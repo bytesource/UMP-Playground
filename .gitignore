@@ -1,0 +1,4 @@
+Credentials.fs
+bin/
+obj/
+.ionide/
