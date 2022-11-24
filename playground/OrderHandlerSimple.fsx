@@ -35,14 +35,17 @@ type OrderStatus =
     | AwaitingShipping
 
 module Data = 
-    module Event = 
-        type WarehouseOrderCreated = { Id: OrderId; WhId: WarehouseId }
-        type TrackingFetched = { Id: OrderId; Number: string; Route: string }
-        type StatusSet = { Id: OrderId; Status: OrderStatus }
+    type WarehouseOrderCreated = { Id: OrderId; WhId: WarehouseId }
+    type TrackingFetched = { Id: OrderId; Number: string; Route: string }
+    type StatusSet = { Id: OrderId; Status: OrderStatus }
+
+    // Name, Address, LineItems, Route
+    type SendWarehouseOrder = { Id: OrderId; SWHData: string }
 
 
-// Name, Address, LineItems, Route
-type SendWarehouseOrderEffect = { Id: OrderId; SWHData: string }
+[<RequireQualifiedAccess>]
+type Batch = 
+    | FetchTrackingNumber
 
 
 // ======================= Test
@@ -53,8 +56,8 @@ type EventError = { Id: OrderId; Reason: string }
 type SuccessEvent = 
     // What data do I GET from the task to store in DB?
     | OrderSaved
-    | WarehouseOrderCreated of Data.Event.WarehouseOrderCreated
-    | TrackingNumberFetched of Data.Event.TrackingFetched
+    | WarehouseOrderCreated of Data.WarehouseOrderCreated
+    | TrackingNumberFetched of Data.TrackingFetched
 
 [<RequireQualifiedAccess>]
 type FailureEvent = 
@@ -69,7 +72,8 @@ type Event =
 
 type FromDbEvent = { Order: Order; FromDb: SuccessEvent }
 
-
+// TODO: Think about shortening type names like Data.Event.WarehouseOrderCreated
+// TODO: Get back to Sanofan repo, store first order and event using JSON.
 // ======================= Test
 
 type GroupedEffect = 
@@ -79,7 +83,7 @@ type GroupedEffect =
 type SingleEffect = 
     // What data do I need to PROVIDE for a single task?
     | FetchEvents
-    | CreateWarehouseOrder of SendWarehouseOrderEffect
+    | CreateWarehouseOrder of Data.SendWarehouseOrder
     //| MarkOrderStatus of OrderId * OrderStatus
     //| SaveEvents of Event.ToDb list
 
@@ -94,10 +98,10 @@ type Msg =
     // What data do I GET from the finished task?
     | EventsFetched of Result<FromDbEvent list, AppError>
     // NOTE: 三泰createOrder不支持批量创建，调一次只能创建一个订单
-    | WarehouseOrderCreated of Result<Result<Data.Event.WarehouseOrderCreated, EventError>, AppError>
+    | WarehouseOrderCreated of Result<Result<Data.WarehouseOrderCreated, EventError>, AppError>
     //| MarkedProcessing of OrderId
     // NOTE: Tracking number might not be available yet.
-    | TrackingNumbersFetched of Result<Data.Event.TrackingFetched option list, AppError>
+    | TrackingNumbersFetched of Result<Data.TrackingFetched option list, AppError>
     //| MarkedAwaitingShipping of Result<unit, AppError>
     //| EventsSaved of Result<unit, Error>
 
@@ -217,14 +221,11 @@ module Effect =
 
     type Config = {
         FetchEvents: unit -> Async<Msg>
-        CreateWarehouseOrder: SendWarehouseOrderEffect -> Async<Msg>
+        CreateWarehouseOrder: Data.SendWarehouseOrder -> Async<Msg>
         FetchTrackingNumbers: OrderId list -> Async<Msg>
     }
 
 
-    [<RequireQualifiedAccess>]
-    type Batch = 
-        | FetchTrackingNumber
 
 // Build final UMP
     let perform config (effects: Effect list) = 
@@ -357,7 +358,7 @@ module Testing =
     let order2 = { OId = OrderId "2"; Addr = "Street B"; PId = "S123" }
     let order3 = { OId = OrderId "3"; Addr = "Street C"; PId = "S234" }
 
-    open Data.Event
+    open Data
     let whOrder1 = { Id = OrderId "1"; WhId = WarehouseId "Wh1"}
     let whOrder2 = { Id = OrderId "2"; WhId = WarehouseId "Wh2"}
     let tracking1 = { Id = OrderId "3"; Number = "Track1234"; Route = "USPS" }
